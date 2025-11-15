@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Smart AI Health Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    :root { --primary: #6366f1; --primary-dark: #4f46e5; --secondary: #8b5cf6; --danger: #ef4444; --warning: #f59e0b; --success: #10b981; --info: #3b82f6; }
+    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #f8fafc; min-height: 100vh; overflow-x: hidden; }
+    .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15); }
+    .glass-strong { background: rgba(255,255,255,0.08); backdrop-filter: blur(24px) saturate(200%); border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2); }
+    .glass-card { background: rgba(255,255,255,0.07); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .glass-card:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+    .fade-in { animation: fadeIn 0.6s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .slide-up { animation: slideUp 0.5s ease-out; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    .pulse-glow { animation: pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.5); } 50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.8); } }
+    .btn { position: relative; overflow: hidden; transition: all 0.3s ease; font-weight: 500; letter-spacing: 0.025em; }
+    .btn::before { content: ''; position: absolute; top: 50%; left: 50%; width: 0; height: 0; border-radius: 50%; background: rgba(255,255,255,0.2); transform: translate(-50%, -50%); transition: width 0.6s, height 0.6s; }
+    .btn:hover::before { width: 300px; height: 300px; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); border: none; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(99, 102, 241, 0.4); }
+    .btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; position: relative; }
+    .status-dot::after { content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; }
+    .status-online { background: var(--success); }
+    .status-online::after { background: var(--success); }
+    .status-offline { background: #6b7280; }
+    .status-warning { background: var(--warning); }
+    .status-warning::after { background: var(--warning); }
+    @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+    .vital-card { position: relative; overflow: hidden; }
+    .vital-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent); animation: shimmer 2s infinite; }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    .vital-value { font-size: 3rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em; background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .chat-bubble { max-width: 85%; word-break: break-word; animation: slideIn 0.3s ease-out; position: relative; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    .chat-bubble-sent { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+    .chat-bubble-received { background: rgba(255,255,255,0.08); }
+    .progress-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; position: relative; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 2px; transition: width 0.3s ease; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; transition: background 0.3s; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 9999; padding: 16px 24px; border-radius: 12px; backdrop-filter: blur(20px); animation: slideInRight 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); box-shadow: 0 10px 40px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); max-width: 400px; }
+    @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .toast-success { background: linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95)); }
+    .toast-error { background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95)); }
+    .toast-info { background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95)); }
+    .spinner { border: 3px solid rgba(255,255,255,0.2); border-radius: 50%; border-top-color: white; width: 24px; height: 24px; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.025em; }
+    .badge-success { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-danger { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-info { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .hide { display: none !important; }
+    .gradient-text { background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .header-blur { backdrop-filter: blur(24px) saturate(180%); background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .feature-card { position: relative; overflow: hidden; }
+    .feature-card::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(99, 102, 241, 0) 0%, rgba(139, 92, 246, 0.1) 100%); opacity: 0; transition: opacity 0.3s; }
+    .feature-card:hover::after { opacity: 1; }
+    .patient-card { position: relative; transition: all 0.3s ease; }
+    .patient-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--primary), var(--secondary)); opacity: 0; transition: opacity 0.3s; }
+    .patient-card:hover::before { opacity: 1; }
+    input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1); }
+    @media (max-width: 768px) { .vital-value { font-size: 2.5rem; } .toast { right: 12px; left: 12px; top: 12px; max-width: calc(100% - 24px); } }
+  </style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div id="app" class="min-h-screen">
+
+  <header class="sticky top-0 z-50 header-blur">
+    <div class="max-w-7xl mx-auto px-4 md:px-8 py-4">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center gap-4">
+          <div class="relative">
+            <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-2xl shadow-2xl transform hover:rotate-12 transition-transform cursor-pointer pulse-glow">🏥</div>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold tracking-tight gradient-text">HealthSync AI</h1>
+            <div class="flex items-center gap-2 text-xs text-slate-300">
+              <span class="status-dot status-online"></span>
+              <span>Real-time Monitoring</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div id="signed-info" class="hidden items-center gap-4">
+            <div class="hidden md:block text-right">
+              <div id="user-name" class="text-sm font-semibold"></div>
+              <div id="user-role" class="text-xs text-slate-300"></div>
+            </div>
+            <button onclick="signOut()" class="btn px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-medium">Sign Out</button>
+          </div>
+
+          <div id="sign-in-controls" class="flex items-center gap-2">
+            <button id="btnSignIn" class="btn btn-primary px-6 py-2.5 rounded-xl text-white text-sm font-medium shadow-lg">
+              <span class="relative z-10 flex items-center gap-2">🔐 Sign in with Google</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-4 md:p-8">
+
+    <!-- HOME PAGE -->
+    <section id="page-home" class="fade-in space-y-8">
+      <div class="glass-strong rounded-3xl p-8 md:p-12 slide-up">
+        <div class="grid md:grid-cols-2 gap-12 items-center">
+          <div>
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6">
+              <span class="status-dot status-online"></span>
+              <span class="text-sm font-medium">AI-Powered Healthcare</span>
+            </div>
+            
+            <h1 class="text-5xl md:text-6xl font-extrabold mb-6 leading-tight">
+              <span class="gradient-text">Monitor Your</span><br/>
+              <span class="text-white">Health in Real-Time</span>
+            </h1>
+            
+            <p class="text-lg text-slate-200 mb-8 leading-relaxed">
+              Advanced IoT health monitoring with ESP8266, MAX30102 & DS18B20 sensors. 
+              Track vital signs with AI-powered insights and connect with healthcare providers instantly.
+            </p>
+
+            <div class="flex flex-wrap gap-4 mb-8">
+              <button onclick="navigate('how')" class="btn btn-secondary px-6 py-3 rounded-xl text-white font-medium">
+                <span class="relative z-10 flex items-center gap-2">📚 Learn More</span>
+              </button>
+              <button onclick="navigate('login')" class="btn btn-primary px-6 py-3 rounded-xl text-white font-medium shadow-lg">
+                <span class="relative z-10 flex items-center gap-2">🚀 Get Started</span>
+              </button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4">
+              <div class="glass-card rounded-2xl p-4 text-center">
+                <div class="text-3xl font-bold gradient-text" id="stat-patients">0</div>
+                <div class="text-xs text-slate-300 mt-1 font-medium">Total Patients</div>
+              </div>
+              <div class="glass-card rounded-2xl p-4 text-center">
+                <div class="text-3xl font-bold text-purple-400" id="stat-doctors">0</div>
+                <div class="text-xs text-slate-300 mt-1 font-medium">Total Doctors</div>
+              </div>
+              <div class="glass-card rounded-2xl p-4 text-center">
+                <div class="text-3xl font-bold text-green-400" id="stat-online">0</div>
+                <div class="text-xs text-slate-300 mt-1 font-medium">Online Now</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="glass-card feature-card rounded-2xl p-6">
+              <div class="flex items-start gap-4">
+                <div class="text-5xl">💓</div>
+                <div class="flex-1">
+                  <h3 class="font-bold text-lg mb-2">Real-Time Vitals</h3>
+                  <p class="text-sm text-slate-200 leading-relaxed">
+                    Continuous monitoring of SpO₂, heart rate, and temperature with instant updates and smart alerts.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card feature-card rounded-2xl p-6">
+              <div class="flex items-start gap-4">
+                <div class="text-5xl">🤖</div>
+                <div class="flex-1">
+                  <h3 class="font-bold text-lg mb-2">AI Health Assistant</h3>
+                  <p class="text-sm text-slate-200 leading-relaxed">
+                    Get intelligent insights and personalized recommendations powered by advanced AI algorithms.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card feature-card rounded-2xl p-6">
+              <div class="flex items-start gap-4">
+                <div class="text-5xl">👨‍⚕️</div>
+                <div class="flex-1">
+                  <h3 class="font-bold text-lg mb-2">Doctor Dashboard</h3>
+                  <p class="text-sm text-slate-200 leading-relaxed">
+                    Healthcare providers can monitor multiple patients, generate reports, and provide real-time care.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section id="page-how" class="hide fade-in space-y-6">
+      <div class="glass-strong rounded-3xl p-8">
+        <button onclick="navigate('home')" class="mb-6 text-sm text-slate-300 hover:text-white flex items-center gap-2 transition-colors">← Back to Home</button>
+        
+        <h2 class="text-4xl font-bold mb-8 gradient-text">How It Works</h2>
+        
+        <div class="grid md:grid-cols-3 gap-6 mb-8">
+          <div class="glass-card rounded-2xl p-6 text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg">📡</div>
+            <h3 class="text-xl font-bold mb-3">IoT Sensors</h3>
+            <p class="text-sm text-slate-200 leading-relaxed">ESP8266 microcontroller reads data from MAX30102 (SpO₂ & heart rate) and DS18B20 (temperature) sensors in real-time.</p>
+          </div>
+
+          <div class="glass-card rounded-2xl p-6 text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg">☁️</div>
+            <h3 class="text-xl font-bold mb-3">Cloud Sync</h3>
+            <p class="text-sm text-slate-200 leading-relaxed">Data is securely pushed to Firebase Realtime Database using HTTPS for instant synchronization across devices.</p>
+          </div>
+
+          <div class="glass-card rounded-2xl p-6 text-center">
+            <div class="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-500 to-teal-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg">📊</div>
+            <h3 class="text-xl font-bold mb-3">Web Dashboard</h3>
+            <p class="text-sm text-slate-200 leading-relaxed">View live data, historical charts, AI insights, and communicate with healthcare providers in real-time.</p>
+          </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-8">
+          <h3 class="text-2xl font-bold mb-6">Technical Architecture</h3>
+          <div class="grid md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+              <div class="flex items-start gap-3">
+                <span class="text-green-400 text-xl">✓</span>
+                <div>
+                  <div class="font-semibold mb-1">Hardware</div>
+                  <div class="text-sm text-slate-300">ESP8266 NodeMCU, MAX30102 Pulse Oximeter, DS18B20 Temperature Sensor</div>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <span class="text-green-400 text-xl">✓</span>
+                <div>
+                  <div class="font-semibold mb-1">Backend</div>
+                  <div class="text-sm text-slate-300">Firebase Realtime Database, Firebase Authentication (Google OAuth)</div>
+                </div>
+              </div>
+            </div>
+            <div class="space-y-4">
+              <div class="flex items-start gap-3">
+                <span class="text-green-400 text-xl">✓</span>
+                <div>
+                  <div class="font-semibold mb-1">Frontend</div>
+                  <div class="text-sm text-slate-300">Modern SPA with Tailwind CSS, Chart.js visualizations</div>
+                </div>
+              </div>
+              <div class="flex items-start gap-3">
+                <span class="text-green-400 text-xl">✓</span>
+                <div>
+                  <div class="font-semibold mb-1">Features</div>
+                  <div class="text-sm text-slate-300">Role-based access, real-time presence, CSV exports, report generation</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOGIN PAGE -->
+    <section id="page-login" class="hide fade-in">
+      <div class="max-w-md mx-auto">
+        <div class="glass-strong rounded-3xl p-8">
+          <div class="text-center mb-8">
+            <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl flex items-center justify-center text-4xl shadow-2xl pulse-glow">🔐</div>
+            <h2 class="text-3xl font-bold mb-2 gradient-text">Welcome Back</h2>
+            <p class="text-slate-200">Sign in to access your health dashboard</p>
+          </div>
+
+          <button id="btnSignIn2" class="btn btn-primary w-full px-6 py-4 rounded-xl text-white font-medium text-lg mb-6 shadow-xl">
+            <span class="relative z-10 flex items-center justify-center gap-3"><span>Sign in with Google</span></span>
+          </button>
+
+          <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="text-2xl">📋</div>
+              <div class="font-semibold">First Time?</div>
+            </div>
+            <p class="text-sm text-slate-200 leading-relaxed">
+              On first sign-in, you'll choose your role (Patient or Doctor). 
+              Patients can self-monitor vitals, while doctors can manage multiple patients.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PATIENT DASHBOARD -->
+    <section id="page-patient" class="hide fade-in">
+      <div class="grid lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 space-y-6">
+          <div class="glass-strong rounded-3xl p-6">
+            <div class="flex justify-between items-start mb-8">
+              <div>
+                <h3 class="text-3xl font-bold mb-2 gradient-text">Your Dashboard</h3>
+                <div class="text-sm text-slate-200" id="patient-name">—</div>
+              </div>
+              <div class="text-right">
+                <div class="flex items-center gap-2 badge badge-success">
+                  <span class="status-dot status-online"></span>
+                  <span>Connected</span>
+                </div>
+                <div id="patient-last" class="text-xs text-slate-400 mt-2">—</div>
+              </div>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-4 mb-6">
+              <div class="vital-card glass-card rounded-2xl p-6 text-center">
+                <div class="text-sm font-medium text-slate-300 mb-3">Blood Oxygen</div>
+                <div id="patient-spo2" class="vital-value text-blue-400 mb-2">--</div>
+                <div class="text-xs text-slate-400 mb-3">SpO₂ %</div>
+                <div class="progress-bar">
+                  <div id="spo2-progress" class="progress-fill" style="width: 95%"></div>
+                </div>
+                <div class="mt-3 text-xs text-slate-400">Normal: 95–100%</div>
+              </div>
+
+              <div class="vital-card glass-card rounded-2xl p-6 text-center">
+                <div class="text-sm font-medium text-slate-300 mb-3">Heart Rate</div>
+                <div id="patient-hr" class="vital-value text-red-400 mb-2">--</div>
+                <div class="text-xs text-slate-400 mb-3">BPM</div>
+                <div class="progress-bar">
+                  <div id="hr-progress" class="progress-fill" style="width: 75%"></div>
+                </div>
+                <div class="mt-3 text-xs text-slate-400">Normal: 60–100</div>
+              </div>
+
+              <div class="vital-card glass-card rounded-2xl p-6 text-center">
+                <div class="text-sm font-medium text-slate-300 mb-3">Temperature</div>
+                <div id="patient-temp" class="vital-value text-orange-400 mb-2">--</div>
+                <div class="text-xs text-slate-400 mb-3">°Celsius</div>
+                <div class="progress-bar">
+                  <div id="temp-progress" class="progress-fill" style="width: 85%"></div>
+                </div>
+                <div class="mt-3 text-xs text-slate-400">Normal: 36.5–37.5°C</div>
+              </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6">
+              <h4 class="font-semibold mb-4 flex items-center gap-2">
+                📈 Historical Trends
+                <span class="text-xs text-slate-400 font-normal">(Last 200 readings)</span>
+              </h4>
+              <canvas id="patientChart" height="100"></canvas>
+            </div>
+
+            <div class="flex flex-wrap gap-3 mt-4">
+              <button onclick="downloadPatientCSV()" class="btn px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-xl font-medium flex items-center gap-2">
+                <span class="relative z-10">📥 Export CSV</span>
+              </button>
+              <button onclick="generatePatientReport(State.user?.uid)" class="btn px-4 py-2 bg-green-600 hover:bg-green-700 rounded-xl font-medium flex items-center gap-2">
+                <span class="relative z-10">📄 Generate Report</span>
+              </button>
+              <button onclick="navigate('connect')" class="btn btn-primary rounded-xl font-medium px-4 py-2 flex items-center gap-2">
+                <span class="relative z-10">👨‍⚕️ Connect to Doctor</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+          <div class="glass-strong rounded-2xl p-6">
+            <h4 class="font-semibold mb-4 flex items-center gap-2">🤖 AI Health Assistant</h4>
+            <div id="ai-responses" class="h-64 overflow-auto p-3 space-y-3 glass-card rounded-lg mb-4">
+              <div class="text-sm text-slate-300 text-center py-8">👋 Ask me anything about your health readings!</div>
+            </div>
+            <div class="flex gap-2">
+              <input id="ai-input" class="flex-1 px-4 py-3 rounded-xl glass-card text-sm transition-all" placeholder="e.g., Should I see a doctor?" onkeypress="if(event.key==='Enter') askAIForPatient()" />
+              <button onclick="askAIForPatient()" class="btn btn-primary px-4 py-3 rounded-xl font-medium">
+                <span class="relative z-10">Send</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="glass-strong rounded-2xl p-6">
+            <h4 class="font-semibold mb-4 flex items-center gap-2">💬 Chat with Doctor</h4>
+            <div id="shared-messages" class="h-48 overflow-auto p-3 space-y-3 glass-card rounded-lg mb-4"></div>
+            <div class="flex gap-2">
+              <input id="shared-input" class="flex-1 px-4 py-3 rounded-xl glass-card text-sm transition-all" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendSharedMessage()" />
+              <button onclick="sendSharedMessage()" class="btn px-4 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl font-medium">
+                <span class="relative z-10">Send</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DOCTOR DASHBOARD -->
+    <section id="page-doctor" class="hide fade-in">
+      <div class="glass-strong rounded-3xl p-6 mb-6">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-3xl font-bold mb-1 gradient-text">Doctor Dashboard</h3>
+            <div class="text-sm text-slate-200">Dr. <span id="doc-name">—</span></div>
+          </div>
+          <button onclick="refreshPatients()" class="btn btn-secondary px-4 py-2 rounded-xl font-medium flex items-center gap-2">
+            <span class="relative z-10">🔄 Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 glass-strong rounded-3xl p-6">
+          <div class="flex justify-between items-center mb-6">
+            <h4 class="font-semibold text-xl">Connected Patients</h4>
+            <div class="text-xs text-slate-400">Click to view details</div>
+          </div>
+          <div id="doctor-patients" class="space-y-3 max-h-[600px] overflow-auto">
+            <div class="text-center py-12 text-slate-400">
+              <div class="text-4xl mb-3">🏥</div>
+              <div>Loading patients...</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+          <div class="glass-strong rounded-2xl p-6">
+            <h4 class="font-semibold mb-4">🟢 Online Users</h4>
+            <div id="online-list" class="space-y-2 max-h-64 overflow-auto"></div>
+          </div>
+
+          <div class="glass-strong rounded-2xl p-6">
+            <h4 class="font-semibold mb-4">📊 Quick Stats</h4>
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between items-center p-3 glass-card rounded-xl">
+                <span class="text-slate-300">Total Patients</span>
+                <span class="font-bold" id="doc-stat-patients">0</span>
+              </div>
+              <div class="flex justify-between items-center p-3 glass-card rounded-xl">
+                <span class="text-slate-300">Online Now</span>
+                <span class="font-bold text-green-400" id="doc-stat-online">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SHARED CONSULTATION VIEW -->
+    <section id="page-connect" class="hide fade-in">
+      <div class="glass-strong rounded-3xl p-6 mb-6">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-3xl font-bold mb-1 gradient-text">Live Consultation</h3>
+            <div id="shared-patient-name" class="text-sm text-slate-200">—</div>
+          </div>
+          <button onclick="navigate(State.role)" class="btn btn-secondary px-4 py-2 rounded-xl font-medium">
+            <span class="relative z-10">← Back to Dashboard</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+          <div class="glass-strong rounded-3xl p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h4 class="font-semibold text-xl">Real-Time Vitals</h4>
+              <div class="text-xs text-slate-400" id="shared-last">—</div>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-4 mb-6">
+              <div class="vital-card glass-card rounded-2xl p-6 text-center">
+                <div class="text-sm font-medium text-slate-300 mb-2">SpO₂</div>
+                <div id="shared-spo2" class="vital-value text-blue-400">--</div>
+                <div class="text-xs text-slate-400 mt-2">%</div>
+              </div>
+
+              <div class="vital-card glass-card rounded-2xl p-6 text-center">
+                <div class="text-sm font-medium text-slate-300 mb-2">Heart Rate</div>
+                <div id="shared-hr" class="vital-value text-red-400">--</div>
+                <div class="text-xs text-slate-400 mt-2">BPM</div>
+              </div>
+
+              <div class="vital-card glass-card rounded-2xl p-6 text-center">
+                <div class="text-sm font-medium text-slate-300 mb-2">Temperature</div>
+                <div id="shared-temp" class="vital-value text-orange-400">--</div>
+                <div class="text-xs text-slate-400 mt-2">°C</div>
+              </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6">
+              <h4 class="font-semibold mb-4">📈 Patient History</h4>
+              <canvas id="sharedChart" height="100"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+          <div class="glass-strong rounded-2xl p-6">
+            <h4 class="font-semibold mb-4">💬 Shared Chat</h4>
+            <div id="shared-chat-area" class="h-72 overflow-auto p-3 glass-card rounded-lg mb-4 space-y-2"></div>
+            <div class="flex gap-2">
+              <input id="shared-chat-input" class="flex-1 px-4 py-3 rounded-xl glass-card text-sm transition-all" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendSharedMessage()" />
+              <button onclick="sendSharedMessage()" class="btn px-4 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl">
+                <span class="relative z-10">Send</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="glass-strong rounded-2xl p-6">
+            <h4 class="font-semibold mb-4">🛠️ Actions</h4>
+            <div class="space-y-3">
+              <button onclick="downloadSelectedCSV()" class="w-full btn px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-medium flex items-center justify-center gap-2">
+                <span class="relative z-10">📥 Export CSV</span>
+              </button>
+              <button onclick="generatePatientReport(State.selectedPatientId)" class="w-full btn px-4 py-3 bg-green-600 hover:bg-green-700 rounded-xl font-medium flex items-center justify-center gap-2">
+                <span class="relative z-10">📄 Generate Report</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="text-center py-8 text-sm text-slate-300">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="mb-4 text-2xl">❤️</div>
+      <div>Built with ESP8266 • Firebase • Tailwind CSS • Chart.js</div>
+      <div class="text-xs text-slate-400 mt-2">HealthSync AI © 2025</div>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDFPcemGJI4XnPM-wGotevWi7y4-EimlpU",
+  authDomain: "lightonoff-5a81b.firebaseapp.com",
+  databaseURL: "https://lightonoff-5a81b-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "lightonoff-5a81b",
+  storageBucket: "lightonoff-5a81b.firebasestorage.app",
+  messagingSenderId: "8674544088",
+  appId: "1:8674544088:web:33318d83f9b2d5f5d94aad"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+const State = {
+  currentPage: 'home',
+  user: null,
+  role: null,
+  selectedPatientId: null,
+  charts: { patient: null, shared: null },
+  listeners: []
+};
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `
+    <div class="flex items-center gap-3">
+      <div class="text-xl">${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</div>
+      <div class="flex-1">${message}</div>
+    </div>
+  `;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+function hideAllSections() {
+  document.querySelectorAll('main > section').forEach(s => s.classList.add('hide'));
+}
+
+function navigate(page) {
+  State.currentPage = page;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showSignedInUI(user) {
+  document.getElementById('signed-info').classList.remove('hidden');
+  document.getElementById('signed-info').classList.add('flex');
+  document.getElementById('sign-in-controls').classList.add('hidden');
+  document.getElementById('user-name').innerText = user.displayName || user.email;
+  document.getElementById('user-role').innerText = State.role ? State.role.charAt(0).toUpperCase() + State.role.slice(1) : '';
+}
+
+function showSignedOutUI() {
+  document.getElementById('signed-info').classList.add('hidden');
+  document.getElementById('sign-in-controls').classList.remove('hidden');
+}
+
+const provider = new firebase.auth.GoogleAuthProvider();
+
+function signInWithGoogle() {
+  auth.signInWithPopup(provider)
+    .then(async (result) => {
+      const user = result.user;
+      State.user = user;
+      const userRef = db.ref('users/' + user.uid);
+      const snap = await userRef.once('value');
+      if (!snap.exists()) {
+        askRoleForNewUser(user);
+      } else {
+        const userData = snap.val();
+        State.role = userData.role;
+        afterSignIn(user, userData.role);
+      }
+    })
+    .catch(err => {
+      console.error('Sign-in error:', err);
+      showToast('Sign-in failed: ' + err.message, 'error');
+    });
+}
+
+function askRoleForNewUser(user) {
+  const role = prompt("Welcome! Choose your role:\nType 'patient' or 'doctor'")?.trim().toLowerCase();
+  if (role !== 'patient' && role !== 'doctor') {
+    showToast('Invalid role. Defaulting to patient.', 'error');
+    createUserAccount(user, 'patient');
+    return;
+  }
+  createUserAccount(user, role);
+}
+
+async function createUserAccount(user, role) {
+  try {
+    await db.ref('users/' + user.uid).set({
+      name: user.displayName || user.email,
+      email: user.email,
+      role: role,
+      createdAt: firebase.database.ServerValue.TIMESTAMP
+    });
+    if (role === 'patient') {
+      await db.ref('patients/' + user.uid).set({
+        name: user.displayName || user.email,
+        email: user.email,
+        deviceId: `DEV-${Math.random().toString(36).slice(2,8).toUpperCase()}`
+      });
+    }
+    State.role = role;
+    afterSignIn(user, role);
+    showToast(`Account created as ${role}!`, 'success');
+  } catch (error) {
+    console.error('Account creation error:', error);
+    showToast('Failed to create account', 'error');
+  }
+}
+
+function afterSignIn(user, role) {
+  State.user = user;
+  State.role = role;
+  showSignedInUI(user);
+  setupPresence(user.uid, role);
+  navigate(role === 'doctor' ? 'doctor' : 'patient');
+}
+
+function signOut() {
+  if (State.user) {
+    db.ref('presence/' + State.user.uid).set({
+      state: 'offline',
+      last_changed: firebase.database.ServerValue.TIMESTAMP
+    });
+  }
+  State.listeners.forEach(unsubscribe => unsubscribe());
+  State.listeners = [];
+  auth.signOut();
+  State.user = null;
+  State.role = null;
+  State.selectedPatientId = null;
+  showSignedOutUI();
+  navigate('home');
+  showToast('Signed out successfully', 'info');
+}
+
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    State.user = user;
+    const snap = await db.ref('users/' + user.uid).once('value');
+    if (snap.exists()) {
+      State.role = snap.val().role;
+      showSignedInUI(user);
+      setupPresence(user.uid, State.role);
+      if (State.currentPage === 'login') {
+        navigate(State.role === 'doctor' ? 'doctor' : 'patient');
+      }
+      render();
+    } else {
+      askRoleForNewUser(user);
+    }
+  } else {
+    State.user = null;
+    State.role = null;
+    showSignedOutUI();
+    render();
+  }
+});
+
+function setupPresence(uid, role) {
+  const presenceRef = db.ref('presence/' + uid);
+  const connectedRef = db.ref('.info/connected');
+  connectedRef.on('value', snap => {
+    if (snap.val() === true) {
+      presenceRef.onDisconnect().set({
+        state: 'offline',
+        role: role,
+        name: State.user.displayName || State.user.email,
+        last_changed: firebase.database.ServerValue.TIMESTAMP
+      });
+      presenceRef.set({
+        state: 'online',
+        role: role,
+        name: State.user.displayName || State.user.email,
+        last_changed: firebase.database.ServerValue.TIMESTAMP
+      });
+    }
+  });
+}
+
+db.ref('presence').on('value', snap => {
+  const val = snap.val() || {};
+  const onlineUsers = Object.values(val).filter(u => u.state === 'online');
+  const onlineCount = onlineUsers.length;
+  document.getElementById('stat-online').innerText = onlineCount;
+  if (document.getElementById('doc-stat-online')) {
+    document.getElementById('doc-stat-online').innerText = onlineCount;
+  }
+  updateOnlineList(onlineUsers);
+});
+
+function updateOnlineList(users) {
+  const container = document.getElementById('online-list');
+  if (!container) return;
+  if (users.length === 0) {
+    container.innerHTML = '<div class="text-sm text-slate-400 text-center py-4">No users online</div>';
+    return;
+  }
+  container.innerHTML = users.map(u => `
+    <div class="flex items-center justify-between p-3 glass-card rounded-xl">
+      <div>
+        <div class="font-semibold text-sm">${u.name}</div>
+        <div class="text-xs text-slate-400">${u.role}</div>
+      </div>
+      <span class="status-dot status-online"></span>
+    </div>
+  `).join('');
+}
+
+function listenToPatientLatest(patientUid, onUpdate) {
+  const ref = db.ref('healthData/' + patientUid);
+  ref.on('value', snap => {
+    const data = snap.val();
+    onUpdate(data || null);
+  });
+  State.listeners.push(() => ref.off());
+}
+
+function listenToPatientHistory(patientUid, onSnapshot) {
+  const ref = db.ref('healthHistory/' + patientUid).limitToLast(200);
+  ref.on('value', snap => {
+    const raw = snap.val() || {};
+    const arr = Object.values(raw).sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
+    onSnapshot(arr);
+  });
+  State.listeners.push(() => ref.off());
+}
+
+function nn(v, fallback='--') {
+  return v === undefined || v === null || isNaN(v) ? fallback : v;
+}
+
+function createOrUpdateChart(chartKey, canvasId, labels, datasets) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  const chartCtx = ctx.getContext('2d');
+  if (State.charts[chartKey]) {
+    State.charts[chartKey].data.labels = labels;
+    State.charts[chartKey].data.datasets = datasets;
+    State.charts[chartKey].update('none');
+  } else {
+    State.charts[chartKey] = new Chart(chartCtx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: true, labels: { color: '#e2e8f0', font: { size: 11 } } },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            titleColor: '#e2e8f0',
+            bodyColor: '#cbd5e1',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.08)' } }
+        }
+      }
+    });
+  }
+}
+
+function updatePatientChart(history) {
+  const labels = history.map(r => new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+  const datasets = [
+    { label: 'SpO₂ (%)', data: history.map(r => r.spO2 || null), borderColor: '#60a5fa', backgroundColor: 'rgba(96, 165, 250, 0.1)', tension: 0.4, pointRadius: 2 },
+    { label: 'Heart Rate (BPM)', data: history.map(r => r.heartRate || null), borderColor: '#fb7185', backgroundColor: 'rgba(251, 113, 133, 0.1)', tension: 0.4, pointRadius: 2 },
+    { label: 'Temperature (°C)', data: history.map(r => r.temperature || null), borderColor: '#fb923c', backgroundColor: 'rgba(251, 146, 60, 0.1)', tension: 0.4, pointRadius: 2 }
+  ];
+  createOrUpdateChart('patient', 'patientChart', labels, datasets);
+}
+
+function updateSharedChart(history) {
+  const labels = history.map(r => new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
+  const datasets = [
+    { label: 'SpO₂ (%)', data: history.map(r => r.spO2 || null), borderColor: '#60a5fa', backgroundColor: 'rgba(96, 165, 250, 0.1)', tension: 0.4, pointRadius: 2 },
+    { label: 'Heart Rate (BPM)', data: history.map(r => r.heartRate || null), borderColor: '#fb7185', backgroundColor: 'rgba(251, 113, 133, 0.1)', tension: 0.4, pointRadius: 2 },
+    { label: 'Temperature (°C)', data: history.map(r => r.temperature || null), borderColor: '#fb923c', backgroundColor: 'rgba(251, 146, 60, 0.1)', tension: 0.4, pointRadius: 2 }
+  ];
+  createOrUpdateChart('shared', 'sharedChart', labels, datasets);
+}
+
+function getAIAdvice(spo2, hr, temp, question) {
+  let advice = [];
+  if (spo2 !== null && !isNaN(spo2)) {
+    if (spo2 < 90) advice.push("🚨 Critical: SpO₂ is dangerously low. Seek emergency medical help immediately!");
+    else if (spo2 < 92) advice.push("🔴 Warning: SpO₂ is below normal (<92%). Please consult a doctor soon.");
+    else if (spo2 < 95) advice.push("⚠️ Caution: SpO₂ is slightly low. Monitor closely and rest.");
+    else advice.push("✅ SpO₂ is within normal range (95-100%).");
+  }
+  if (hr !== null && !isNaN(hr)) {
+    if (hr < 40 || hr > 140) advice.push("🚨 Critical: Heart rate is abnormal. Seek medical attention!");
+    else if (hr < 50 || hr > 120) advice.push("⚠️ Heart rate is outside normal resting range. Monitor carefully.");
+    else advice.push("✅ Heart rate is normal for resting conditions.");
+  }
+  if (temp !== null && !isNaN(temp)) {
+    if (temp >= 39) advice.push("🚨 High fever detected (≥39°C). Take fever medication and consult a doctor.");
+    else if (temp >= 38) advice.push("🔴 Fever detected (38°C+). Rest, stay hydrated, and monitor.");
+    else if (temp >= 37.5) advice.push("⚠️ Slightly elevated temperature. Keep monitoring.");
+    else if (temp < 35) advice.push("⚠️ Low body temperature. Stay warm and monitor.");
+    else advice.push("✅ Temperature is normal.");
+  }
+  if (question) {
+    if (question.toLowerCase().includes('doctor') || question.toLowerCase().includes('emergency')) {
+      advice.push("\n💡 If you're experiencing severe symptoms, chest pain, difficulty breathing, or feel unwell, please seek medical attention immediately.");
+    } else {
+      advice.push("\n💡 General advice: Stay hydrated, get adequate rest, and maintain a healthy lifestyle. Consult your doctor if symptoms persist.");
+    }
+  }
+  return advice.join('\n\n');
+}
+
+function askAIForPatient() {
+  const input = document.getElementById('ai-input');
+  const q = input.value.trim();
+  if (!q) {
+    showToast('Please enter a question', 'error');
+    return;
+  }
+  if (!State.user) {
+    showToast('Please sign in first', 'error');
+    return;
+  }
+  const uid = State.user.uid;
+  db.ref('healthData/' + uid).once('value').then(snap => {
+    const data = snap.val() || {};
+    const response = getAIAdvice(Number(data.spO2), Number(data.heartRate), Number(data.temperature), q);
+    const area = document.getElementById('ai-responses');
+    const block = document.createElement('div');
+    block.className = 'chat-bubble glass-strong rounded-xl p-3';
+    block.innerHTML = `
+      <div class="text-xs font-semibold text-purple-300 mb-2">You asked: ${escapeHtml(q)}</div>
+      <div class="text-sm leading-relaxed whitespace-pre-line">${escapeHtml(response)}</div>
+      <div class="text-xs text-slate-400 mt-2">${new Date().toLocaleTimeString()}</div>
+    `;
+    area.appendChild(block);
+    area.scrollTop = area.scrollHeight;
+    input.value = '';
+    showToast('AI response generated', 'success');
+  }).catch(err => {
+    console.error('AI query error:', err);
+    showToast('Failed to get AI response', 'error');
+  });
+}
+
+function sendSharedMessage() {
+  const input = document.getElementById('shared-input') || document.getElementById('shared-chat-input');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) {
+    showToast('Please enter a message', 'error');
+    return;
+  }
+  if (!State.user) {
+    showToast('Please sign in first', 'error');
+    return;
+  }
+  db.ref('sharedChat').push({
+    senderId: State.user.uid,
+    senderName: State.user.displayName || State.user.email,
+    senderRole: State.role,
+    message: text,
+    timestamp: firebase.database.ServerValue.TIMESTAMP
+  }).then(() => {
+    input.value = '';
+  }).catch(err => {
+    console.error('Send message error:', err);
+    showToast('Failed to send message', 'error');
+  });
+}
+
+db.ref('sharedChat').limitToLast(100).on('value', snap => {
+  const messages = snap.val() ? Object.values(snap.val()) : [];
+  updateChatUI('shared-messages', messages);
+  updateChatUI('shared-chat-area', messages);
+});
+
+function updateChatUI(elementId, messages) {
+  const area = document.getElementById(elementId);
+  if (!area) return;
+  if (messages.length === 0) {
+    area.innerHTML = '<div class="text-sm text-slate-400 text-center py-8">No messages yet</div>';
+    return;
+  }
+  area.innerHTML = messages.map(msg => {
+    const isOwn = msg.senderId === State.user?.uid;
+    return `
+      <div class="chat-bubble p-3 rounded-xl ${isOwn ? 'bg-purple-600/40 ml-auto' : 'glass-strong'} text-sm">
+        <div class="font-semibold text-xs mb-1 flex items-center gap-2">
+          <span>${escapeHtml(msg.senderName)}</span>
+          <span class="text-xs opacity-60">${msg.senderRole || ''}</span>
+        </div>
+        <div class="leading-relaxed">${escapeHtml(msg.message)}</div>
+        <div class="text-xs opacity-60 mt-1">${new Date(msg.timestamp).toLocaleTimeString()}</div>
+      </div>
+    `;
+  }).join('');
+  area.scrollTop = area.scrollHeight;
+}
+
+function downloadPatientCSV() {
+  if (!State.user) {
+    showToast('Please sign in first', 'error');
+    return;
+  }
+  const pid = State.user.uid;
+  db.ref('healthHistory/' + pid).once('value').then(snap => {
+    const val = snap.val() || {};
+    const entries = Object.values(val);
+    if (entries.length === 0) {
+      showToast('No health history available', 'error');
+      return;
+    }
+    let csv = 'Timestamp,SpO2 (%),Heart Rate (BPM),Temperature (°C)\n';
+    entries.forEach(r => {
+      csv += `${new Date(r.timestamp).toLocaleString()},${r.spO2||''},${r.heartRate||''},${r.temperature||''}\n`;
+    });
+    downloadBlob(csv, `patient_${State.selectedPatientId}_${Date.now()}.csv`, 'text/csv');
+    showToast('CSV exported successfully', 'success');
+  }).catch(err => {
+    console.error('CSV export error:', err);
+    showToast('Failed to export CSV', 'error');
+  });
+}
+
+function downloadSelectedCSV() {
+  if (!State.selectedPatientId) {
+    showToast('No patient selected', 'error');
+    return;
+  }
+  db.ref('healthHistory/' + State.selectedPatientId).once('value').then(snap => {
+    const val = snap.val() || {};
+    const entries = Object.values(val);
+    if (entries.length === 0) {
+      showToast('No history for this patient', 'error');
+      return;
+    }
+    let csv = 'Timestamp,SpO2 (%),Heart Rate (BPM),Temperature (°C)\n';
+    entries.forEach(r => {
+      csv += `${new Date(r.timestamp).toLocaleString()},${r.spO2||''},${r.heartRate||''},${r.temperature||''}\n`;
+    });
+    downloadBlob(csv, `health_data_${State.selectedPatientId}_${Date.now()}.csv`, 'text/csv');
+    showToast('CSV exported successfully', 'success');
+  }).catch(err => {
+    console.error('CSV export error:', err);
+    showToast('Failed to export CSV', 'error');
+  });
+}
+
+function generatePatientReport(patientId) {
+  if (!patientId) {
+    showToast('No patient selected', 'error');
+    return;
+  }
+  db.ref('healthHistory/' + patientId).once('value').then(snap => {
+    const val = snap.val() || {};
+    const arr = Object.values(val);
+    if (arr.length === 0) {
+      showToast('No history to generate report', 'error');
+      return;
+    }
+    const recent = arr.slice(-100);
+    const avg = {
+      spo2: (recent.reduce((s,r) => s + (r.spO2||0), 0) / recent.length).toFixed(1),
+      hr: (recent.reduce((s,r) => s + (r.heartRate||0), 0) / recent.length).toFixed(1),
+      temp: (recent.reduce((s,r) => s + (r.temperature||0), 0) / recent.length).toFixed(2)
+    };
+    const min = {
+      spo2: Math.min(...recent.map(r => r.spO2 || 100)),
+      hr: Math.min(...recent.map(r => r.heartRate || 200)),
+      temp: Math.min(...recent.map(r => r.temperature || 40))
+    };
+    const max = {
+      spo2: Math.max(...recent.map(r => r.spO2 || 0)),
+      hr: Math.max(...recent.map(r => r.heartRate || 0)),
+      temp: Math.max(...recent.map(r => r.temperature || 0))
+    };
+    const report = `HEALTH MONITORING REPORT
+Patient ID: ${patientId}
+Generated: ${new Date().toLocaleString()}
+Analysis Period: Last ${recent.length} readings
+
+===========================================
+VITAL SIGNS SUMMARY
+===========================================
+
+SpO₂ (Blood Oxygen Saturation)
+  Average: ${avg.spo2}%
+  Min: ${min.spo2}%
+  Max: ${max.spo2}%
+  Status: ${avg.spo2 >= 95 ? 'Normal' : avg.spo2 >= 92 ? 'Low' : 'Critical'}
+
+Heart Rate
+  Average: ${avg.hr} BPM
+  Min: ${min.hr} BPM
+  Max: ${max.hr} BPM
+  Status: ${avg.hr >= 60 && avg.hr <= 100 ? 'Normal' : 'Abnormal'}
+
+Body Temperature
+  Average: ${avg.temp}°C
+  Min: ${min.temp}°C
+  Max: ${max.temp}°C
+  Status: ${avg.temp >= 36.5 && avg.temp <= 37.5 ? 'Normal' : 'Abnormal'}
+
+===========================================
+RECOMMENDATIONS
+===========================================
+
+ ${avg.spo2 < 92 ? '⚠️ SpO₂ levels are concerning. Medical consultation recommended.\n' : ''}${avg.hr < 50 || avg.hr > 120 ? '⚠️ Heart rate is outside normal range. Monitor closely.\n' : ''}${avg.temp >= 38 ? '⚠️ Elevated temperature detected. Monitor for fever.\n' : ''}
+ ${avg.spo2 >= 95 && avg.hr >= 60 && avg.hr <= 100 && avg.temp >= 36.5 && avg.temp <= 37.5 ? '✅ All vital signs appear normal.' : ''}
+
+===========================================
+DISCLAIMER
+===========================================
+This is an automated summary generated from sensor data.
+Always consult qualified healthcare professionals for
+medical diagnosis and treatment decisions.
+
+HealthSync AI © 2025
+`;
+    downloadBlob(report, `report_${patientId}_${Date.now()}.txt`, 'text/plain');
+    showToast('Report generated successfully', 'success');
+  }).catch(err => {
+    console.error('Report generation error:', err);
+    showToast('Failed to generate report', 'error');
+  });
+}
+
+function downloadBlob(text, filename, type) {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function refreshPatients() {
+  loadPatients();
+  showToast('Patient list refreshed', 'info');
+}
+
+function loadPatients() {
+  db.ref('patients').once('value').then(snap => {
+    const patients = snap.val() || {};
+    const container = document.getElementById('doctor-patients');
+    if (!container) return;
+    const keys = Object.keys(patients);
+    if (keys.length === 0) {
+      container.innerHTML = '<div class="text-center py-12 text-slate-400">No patients registered yet</div>';
+      document.getElementById('stat-patients').innerText = '0';
+      if (document.getElementById('doc-stat-patients')) {
+        document.getElementById('doc-stat-patients').innerText = '0';
+      }
+      return;
+    }
+    document.getElementById('stat-patients').innerText = keys.length;
+    if (document.getElementById('doc-stat-patients')) {
+      document.getElementById('doc-stat-patients').innerText = keys.length;
+    }
+    container.innerHTML = '';
+    keys.forEach(pid => {
+      const p = patients[pid];
+      db.ref('healthData/' + pid).once('value').then(snap2 => {
+        const latest = snap2.val() || {};
+        const card = document.createElement('div');
+        card.className = 'patient-card glass-card rounded-2xl p-5 cursor-pointer';
+        card.innerHTML = `
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <div class="font-bold text-lg mb-1">${p.name}</div>
+              <div class="text-xs text-slate-400">Device: ${p.deviceId || 'N/A'}</div>
+              <div class="text-xs text-slate-400">Email: ${p.email || 'N/A'}</div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="selectPatientForDoctor('${pid}','${p.name}')" class="btn btn-primary px-4 py-2 rounded-xl text-sm font-medium">
+                <span class="relative z-10">View</span>
+              </button>
+              <button onclick="generatePatientReport('${pid}')" class="btn px-3 py-2 bg-green-600 hover:bg-green-700 rounded-xl text-sm font-medium">
+                <span class="relative z-10">📄</span>
+              </button>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="glass-card rounded-xl p-3 text-center">
+              <div class="text-xs text-slate-400 mb-1">SpO₂</div>
+              <div class="font-bold text-blue-400 text-lg">${nn(latest.spO2)}%</div>
+            </div>
+            <div class="glass-card rounded-xl p-3 text-center">
+              <div class="text-xs text-slate-400 mb-1">HR</div>
+              <div class="font-bold text-red-400 text-lg">${nn(latest.heartRate)}</div>
+            </div>
+            <div class="glass-card rounded-xl p-3 text-center">
+              <div class="text-xs text-slate-400 mb-1">Temp</div>
+              <div class="font-bold text-orange-400 text-lg">${nn(latest.temperature)}°C</div>
+            </div>
+          </div>
+          <div class="mt-3 text-xs text-slate-400 text-right">
+            ${latest.timestamp ? 'Last: ' + new Date(latest.timestamp).toLocaleString() : 'No data yet'}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    });
+  }).catch(err => {
+    console.error('Load patients error:', err);
+    showToast('Failed to load patients', 'error');
+  });
+}
+
+function selectPatientForDoctor(pid, name) {
+  State.selectedPatientId = pid;
+  navigate('connect');
+  showToast(`Viewing patient: ${name}`, 'info');
+}
+
+function navigateToConnect(patientId) {
+  State.selectedPatientId = patientId || State.user?.uid;
+  navigate('connect');
+  db.ref('patients/' + State.selectedPatientId).once('value').then(s => {
+    const p = s.val() || {};
+    document.getElementById('shared-patient-name').innerText = `Patient: ${p.name || State.selectedPatientId}`;
+  });
+  listenToPatientLatest(State.selectedPatientId, data => {
+    document.getElementById('shared-spo2').innerText = nn(data?.spO2);
+    document.getElementById('shared-hr').innerText = nn(data?.heartRate);
+    document.getElementById('shared-temp').innerText = nn(data?.temperature);
+    document.getElementById('shared-last').innerText = data?.timestamp 
+      ? 'Last: ' + new Date(data.timestamp).toLocaleString() 
+      : 'No recent data';
+  });
+  listenToPatientHistory(State.selectedPatientId, history => {
+    updateSharedChart(history);
+  });
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function render() {
+  hideAllSections();
+  const page = State.currentPage;
+  const pageElement = document.getElementById(`page-${page}`);
+  if (!pageElement) {
+    console.error(`Page not found: ${page}`);
+    navigate('home');
+    return;
+  }
+  pageElement.classList.remove('hide');
+  switch(page) {
+    case 'home':
+      updateHomeStats();
+      break;
+    case 'patient':
+      if (!State.user) {
+        showToast('Please sign in to access patient dashboard', 'error');
+        navigate('login');
+        return;
+      }
+      initPatientDashboard();
+      break;
+    case 'doctor':
+      if (!State.user) {
+        showToast('Please sign in to access doctor dashboard', 'error');
+        navigate('login');
+        return;
+      }
+      initDoctorDashboard();
+      break;
+    case 'connect':
+      if (!State.user) {
+        showToast('Please sign in first', 'error');
+        navigate('login');
+        return;
+      }
+      navigateToConnect(State.selectedPatientId);
+      break;
+  }
+}
+
+function updateHomeStats() {
+  db.ref('patients').once('value').then(snap => {
+    const count = Object.keys(snap.val() || {}).length;
+    document.getElementById('stat-patients').innerText = count;
+  });
+  db.ref('users').once('value').then(snap => {
+    const users = snap.val() || {};
+    const doctorCount = Object.values(users).filter(u => u.role === 'doctor').length;
+    document.getElementById('stat-doctors').innerText = doctorCount;
+  });
+}
+
+function initPatientDashboard() {
+  document.getElementById('patient-name').innerText = State.user.displayName || State.user.email;
+  listenToPatientLatest(State.user.uid, data => {
+    const spo2 = nn(data?.spO2);
+    const hr = nn(data?.heartRate);
+    const temp = nn(data?.temperature);
+    
+    document.getElementById('patient-spo2').innerText = spo2;
+    document.getElementById('patient-hr').innerText = hr;
+    document.getElementById('patient-temp').innerText = temp;
+    
+    // Update progress bars
+    if (data?.spO2) {
+      document.getElementById('spo2-progress').style.width = `${data.spO2}%`;
+    }
+    if (data?.heartRate) {
+      const hrPercent = Math.min(100, Math.max(0, (data.heartRate - 40) / 100 * 100));
+      document.getElementById('hr-progress').style.width = `${hrPercent}%`;
+    }
+    if (data?.temperature) {
+      const tempPercent = Math.min(100, Math.max(0, (data.temperature - 35) / 5 * 100));
+      document.getElementById('temp-progress').style.width = `${tempPercent}%`;
+    }
+    
+    document.getElementById('patient-last').innerText = data?.timestamp 
+      ? 'Last: ' + new Date(data.timestamp).toLocaleString() 
+      : 'Waiting for data...';
+  });
+  listenToPatientHistory(State.user.uid, history => {
+    updatePatientChart(history);
+  });
+}
+
+function initDoctorDashboard() {
+  document.getElementById('doc-name').innerText = State.user.displayName || State.user.email;
+  loadPatients();
+}
+
+document.getElementById('btnSignIn').addEventListener('click', signInWithGoogle);
+document.getElementById('btnSignIn2').addEventListener('click', signInWithGoogle);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (State.currentPage === 'connect') {
+      navigate(State.role || 'home');
+    }
+  }
+});
+
+window.State = State;
+window.navigate = navigate;
+window.signOut = signOut;
+window.askAIForPatient = askAIForPatient;
+window.sendSharedMessage = sendSharedMessage;
+window.downloadPatientCSV = downloadPatientCSV;
+window.downloadSelectedCSV = downloadSelectedCSV;
+window.generatePatientReport = generatePatientReport;
+window.refreshPatients = refreshPatients;
+window.selectPatientForDoctor = selectPatientForDoctor;
+window.navigateToConnect = navigateToConnect;
+
+function init() {
+  console.log('🏥 HealthSync AI initialized');
+  showSignedOutUI();
+  navigate('home');
+  if (window.location.hash === '#demo') {
+    console.log('Demo mode enabled');
+  }
+}
+
+init();
+</script>
+
+</body>
+</html>
